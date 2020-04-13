@@ -12,24 +12,11 @@ full_table = pd.read_csv('../data/covid_19_clean_complete.csv', parse_dates=['Da
 # print(full_table.sample(6))
 
 
-# 数据处理---------------------------
-# 赛筛选数据
-ship_rows = full_table['Province/State'].str.contains('Grand Princess') | \
-            full_table['Province/State'].str.contains('Diamond Princess') | \
-            full_table['Country/Region'].str.contains('Diamond Princess') | \
-            full_table['Country/Region'].str.contains('MS Zaandam')
-
-ship = full_table[ship_rows]
-# print(ship)
-
-full_table = full_table[~(ship_rows)]
-# print(full_table.size)
-
-ship_latest = ship[ship['Date'] == max(ship['Date'])]
-
 # 数据清理--------------------------
 # 各个国家存活的 ->  确诊-死亡-出院=存活的
 full_table['Active'] = full_table['Confirmed'] - full_table['Deaths'] - full_table['Recovered']
+
+
 
 full_table['Country/Region'] = full_table['Country/Region'].replace('Mainland China', 'China')
 
@@ -43,7 +30,7 @@ full_table['Recovered'] = full_table['Recovered'].astype(int)
 
 temp = full_table.groupby('Date')['Recovered', 'Deaths', 'Active'].sum().reset_index()
 
-print('----------')
+
 #行列互换
 temp = temp.melt(id_vars="Date",
                  value_vars=['Recovered', 'Deaths', 'Active'],
