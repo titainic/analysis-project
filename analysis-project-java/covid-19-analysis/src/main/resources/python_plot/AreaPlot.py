@@ -3,7 +3,7 @@ import pandas as pd
 from sys import argv
 import demjson
 
-cnf, dth, rec, act = '#393e46', '#ff2e63', '#21bf73', '#fe9801'
+dth, rec, act = '#ff2e63', '#21bf73', '#fe9801'
 
 json = argv[1]
 data = demjson.decode(json)
@@ -17,5 +17,7 @@ fig = px.area(df,
               height=600,
               color_discrete_sequence = [rec, dth, act],
 	          line_group="Case")
+
+fig.update_layout(xaxis_rangeslider_visible=True)
 
 fig.show()
