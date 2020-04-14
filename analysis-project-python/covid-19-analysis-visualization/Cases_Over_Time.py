@@ -1,15 +1,13 @@
 #随时间推移-数据分析可视化
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objs as go
-import plotly.figure_factory as ff
-from plotly.subplots import make_subplots
+
 
 cnf, dth, rec, act = '#393e46', '#ff2e63', '#21bf73', '#fe9801'
 pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
 
 full_table = pd.read_csv('../data/covid_19_clean_complete.csv', parse_dates=['Date'])
-# print(full_table.sample(6))
 
 
 # 数据清理--------------------------
@@ -17,26 +15,23 @@ full_table = pd.read_csv('../data/covid_19_clean_complete.csv', parse_dates=['Da
 full_table['Active'] = full_table['Confirmed'] - full_table['Deaths'] - full_table['Recovered']
 
 
-
-full_table['Country/Region'] = full_table['Country/Region'].replace('Mainland China', 'China')
-
 # 清理异常值,空值
 full_table[['Province/State']] = full_table[['Province/State']].fillna('')
 full_table[['Confirmed', 'Deaths', 'Recovered', 'Active']] = full_table[['Confirmed', 'Deaths', 'Recovered', 'Active']].fillna(0)
 
 full_table['Recovered'] = full_table['Recovered'].astype(int)
-# print(full_table.sample(6))
 
 
 temp = full_table.groupby('Date')['Recovered', 'Deaths', 'Active'].sum().reset_index()
 
-
+# print(temp)
 #行列互换
 temp = temp.melt(id_vars="Date",
                  value_vars=['Recovered', 'Deaths', 'Active'],
                  var_name='Case',
                  value_name='Count')
-
+print('-----------------')
+print(temp)
 
 fig = px.area(temp,
               x='Date',
