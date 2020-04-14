@@ -1,5 +1,7 @@
 package com.covid19.analysis;
 
+import com.google.gson.Gson;
+import com.project.utlis.JavaRunPython;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.AnalysisException;
 import org.apache.spark.sql.Dataset;
@@ -10,6 +12,9 @@ import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.functions;
 import org.apache.spark.sql.types.DataTypes;
 
+import java.io.IOException;
+import java.util.List;
+
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.concat_ws;
 import static org.apache.spark.sql.functions.split;
@@ -17,9 +22,9 @@ import static org.apache.spark.sql.functions.sum;
 
 public class AreaPlot
 {
-    public static String path = "/home/titanic/soft/pycharm_workspace/analysis-project/analysis-project-java/covid-19-analysis/src/main/resources/covid_19_clean_complete.csv";
+    public static String path = "/home/titanic/soft/pycharm_workspace/analysis-project/analysis-project-java/covid-19-analysis/src/main/resources/data/covid_19_clean_complete.csv";
 
-    public static void main(String[] args) throws AnalysisException
+    public static void main(String[] args) throws AnalysisException, IOException
     {
         SparkSession spark = SparkSession.builder().
                 master("spark://titanic:7077").
@@ -95,9 +100,24 @@ public class AreaPlot
         //防坑指南  ->  'Recovered' , `Recovered` , Date,不一样
         Dataset<Row> active9DS = active8DS.sqlContext().sql("SELECT Date , STACK(3,'Recovered',`Recovered`,'Deaths',`Deaths`,'Active',`Active`) AS (`Case`,`Count`) FROM active8DS");
 
+        List<String> jsonList = active9DS.toJSON().collectAsList();
+
+        Gson g = new Gson();
+        String json = g.toJson(jsonList);
+        System.out.println(json);
 
         spark.stop();
-
-
+        json = json.replace("\\", "");
+        json = json.replace("\"{", "{");
+        json = json.replace("}\"", "}");
+        json = "'"+json+"'";
+        System.out.println(json);
+        try
+        {
+            JavaRunPython.run(json);
+        } catch (InterruptedException e)
+        {
+            e.printStackTrace();
+        }
     }
 }
