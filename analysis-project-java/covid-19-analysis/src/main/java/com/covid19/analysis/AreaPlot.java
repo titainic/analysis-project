@@ -20,6 +20,9 @@ import static org.apache.spark.sql.functions.concat_ws;
 import static org.apache.spark.sql.functions.split;
 import static org.apache.spark.sql.functions.sum;
 
+/**
+ * java实现spark,数据处理,并调用python可视化plotly进行显示
+ */
 public class AreaPlot
 {
     public static String path = "/home/titanic/soft/pycharm_workspace/analysis-project/analysis-project-java/covid-19-analysis/src/main/resources/data/covid_19_clean_complete.csv";
@@ -32,6 +35,7 @@ public class AreaPlot
                 getOrCreate();
         spark.sparkContext().addJar("/home/titanic/soft/pycharm_workspace/analysis-project/analysis-project-java/covid-19-analysis/target/covid-19-analysis-1.0-SNAPSHOT.jar");
 
+        //加载数据
         Dataset<Row> data = spark
                 .read()
                 .option("inferSchema", "true")
@@ -39,8 +43,10 @@ public class AreaPlot
                 .format("com.databricks.spark.csv")
                 .load(path).select(col("Date"), col("Confirmed"), col("Deaths"), col("Recovered"));
 
+        //新增列,值为0
         Dataset<Row> activeDS = data.withColumn("Active", functions.lit(0));
 
+        //存活人数计算
         Dataset<Row> active2DS = activeDS.map(new MapFunction<Row, Row>()
         {
             public Row call(Row row) throws Exception
@@ -58,8 +64,8 @@ public class AreaPlot
             }
         }, RowEncoder.apply(activeDS.schema()));
 
+        //空值替换为0
         Dataset<Row> active3DS = active2DS.na().fill(0);
-//        Dataset<Row> active4DS = active3DS.groupBy("Date").agg(sum(col("Recovered")).as("Recovered"), sum(col("Deaths")).as("Deaths"), sum(col("Active")).as("Active"));
 
         //2/2/20 日期 按照'/'拆分成多列,修改年20为2020
         Dataset<Row> active5DS = active3DS.withColumn("Date", split(col("Date"), "/")).select(
@@ -94,12 +100,14 @@ public class AreaPlot
                 col("Active")).
                 sort(col("Date"));
 
+        //按照天统计数据
         Dataset<Row> active8DS = active7DS.groupBy("Date").agg(sum(col("Recovered")).as("Recovered"), sum(col("Deaths")).as("Deaths"), sum(col("Active")).as("Active"));
         active8DS.createTempView("active8DS");
 
-        //防坑指南  ->  'Recovered' , `Recovered` , Date,不一样
+        //  行列转换  防坑指南  ->  'Recovered' , `Recovered` , Date,不一样
         Dataset<Row> active9DS = active8DS.sqlContext().sql("SELECT Date , STACK(3,'Recovered',`Recovered`,'Deaths',`Deaths`,'Active',`Active`) AS (`Case`,`Count`) FROM active8DS");
 
+        //转换json
         List<String> jsonList = active9DS.toJSON().collectAsList();
 
         Gson g = new Gson();
