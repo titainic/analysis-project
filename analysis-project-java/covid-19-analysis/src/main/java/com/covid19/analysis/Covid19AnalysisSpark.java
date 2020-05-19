@@ -23,9 +23,14 @@ import static org.apache.spark.sql.functions.sum;
 /**
  * java实现spark,数据处理,并调用python可视化plotly进行显示
  */
-public class AreaPlot
+public class Covid19AnalysisSpark
 {
+
+
     public static String path = "/home/titanic/soft/pycharm_workspace/analysis-project/analysis-project-java/covid-19-analysis/src/main/resources/data/covid_19_clean_complete.csv";
+
+    public static String areaPlotPath = "/home/titanic/soft/pycharm_workspace/analysis-project/analysis-project-java/covid-19-analysis/src/main/resources/python_plot/AreaPlot.py";
+    public static String confirmedAndDeathsPath = "/home/titanic/soft/pycharm_workspace/analysis-project/analysis-project-java/covid-19-analysis/src/main/resources/python_plot/BarPlot.py";
 
     public static void main(String[] args) throws AnalysisException, IOException
     {
@@ -64,6 +69,7 @@ public class AreaPlot
             }
         }, RowEncoder.apply(activeDS.schema()));
 
+
         //空值替换为0
         Dataset<Row> active3DS = active2DS.na().fill(0);
 
@@ -74,7 +80,8 @@ public class AreaPlot
                 col("Date").getItem(2).as("yy"),
                 col("Recovered"),
                 col("Deaths"),
-                col("Active"));
+                col("Active"),
+                col("Confirmed"));
 
 
         Dataset<Row> active6DS = active5DS.map(new MapFunction<Row, Row>()
@@ -89,7 +96,8 @@ public class AreaPlot
                         yy + "20",
                         row.getInt(3),
                         row.getInt(4),
-                        row.getInt(5));
+                        row.getInt(5),
+                        row.getInt(6));
             }
         }, RowEncoder.apply(active5DS.schema()));
 
@@ -97,8 +105,12 @@ public class AreaPlot
         Dataset<Row> active7DS = active6DS.select(concat_ws("-", col("yy"), col("mm"), col("dd")).as("Date").cast(DataTypes.DateType),
                 col("Recovered"),
                 col("Deaths"),
+                col("Confirmed"),
                 col("Active")).
-                sort(col("Date"));
+                sort(col("Date")
+                );
+
+
 
         //按照天统计数据
         Dataset<Row> active8DS = active7DS.groupBy("Date").agg(sum(col("Recovered")).as("Recovered"), sum(col("Deaths")).as("Deaths"), sum(col("Active")).as("Active"));
@@ -112,20 +124,47 @@ public class AreaPlot
 
         Gson g = new Gson();
         String json = g.toJson(jsonList);
-        System.out.println(json);
 
-        spark.stop();
-        json = json.replace("\\", "");
-        json = json.replace("\"{", "{");
-        json = json.replace("}\"", "}");
-        json = "'"+json+"'";
-        System.out.println(json);
+        json = jsonFormat(json);
+
+
         try
         {
-            JavaRunPython.run(json);
+            JavaRunPython.run(json, areaPlotPath);
         } catch (InterruptedException e)
         {
             e.printStackTrace();
         }
+
+        Dataset<Row> confirmedAndDeathsDS = active7DS.groupBy(col("Date")).agg(sum(col("Confirmed")).as("Confirmed"), sum(col("Deaths")).as("Deaths"));
+        List<String> confirmedAndDeathsList = confirmedAndDeathsDS.toJSON().collectAsList();
+        String confirmedAndDeathsJson = g.toJson(confirmedAndDeathsList);
+
+        confirmedAndDeathsJson = jsonFormat(confirmedAndDeathsJson);
+
+        try
+        {
+            JavaRunPython.run(confirmedAndDeathsJson, confirmedAndDeathsPath);
+        } catch (InterruptedException e)
+        {
+            e.printStackTrace();
+        }
+
+        spark.stop();
+    }
+
+    /**
+     * java调用python,传递json,要对json数据进行一定的格式转换优化
+     *
+     * @param json
+     * @return
+     */
+    public static String jsonFormat(String json)
+    {
+        json = json.replace("\\", "");
+        json = json.replace("\"{", "{");
+        json = json.replace("}\"", "}");
+        json = "'" + json + "'";
+        return json;
     }
 }

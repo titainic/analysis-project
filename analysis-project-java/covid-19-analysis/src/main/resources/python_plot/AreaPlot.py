@@ -6,10 +6,11 @@ import demjson
 dth, rec, act = '#ff2e63', '#21bf73', '#fe9801'
 
 json = argv[1]
+print(json)
 data = demjson.decode(json)
 
 df=pd.read_json(data,orient='records')
-print(df)
+
 fig = px.area(df,
               x="Date",
               y="Count",
